@@ -15,6 +15,7 @@ Package terminator permits orderly stopping / shutdown of a group of goroutines 
 
 - [func Add\(delta int\)](<#Add>)
 - [func Done\(\)](<#Done>)
+- [func Go\(f func\(\)\)](<#Go>)
 - [func SetDefault\(t \*Terminator\)](<#SetDefault>)
 - [func ShutDown\(\) \<\-chan struct\{\}](<#ShutDown>)
 - [func ShuttingDown\(\) bool](<#ShuttingDown>)
@@ -25,6 +26,7 @@ Package terminator permits orderly stopping / shutdown of a group of goroutines 
   - [func New\(\) \*Terminator](<#New>)
   - [func \(t \*Terminator\) Add\(delta int\)](<#Terminator.Add>)
   - [func \(t \*Terminator\) Done\(\)](<#Terminator.Done>)
+  - [func \(t \*Terminator\) Go\(f func\(\)\)](<#Terminator.Go>)
   - [func \(t \*Terminator\) ShutDown\(\) \<\-chan struct\{\}](<#Terminator.ShutDown>)
   - [func \(t \*Terminator\) ShuttingDown\(\) bool](<#Terminator.ShuttingDown>)
   - [func \(t \*Terminator\) Stop\(\)](<#Terminator.Stop>)
@@ -48,6 +50,15 @@ func Done()
 ```
 
 Done decrements the count of goroutines in the group by one
+
+<a name="Go"></a>
+## func Go
+
+```go
+func Go(f func())
+```
+
+Go runs a function inside an Add\(1\) \-\-\- Done\(\) sequence
 
 <a name="SetDefault"></a>
 ## func SetDefault
@@ -140,6 +151,15 @@ func (t *Terminator) Done()
 ```
 
 Done decrements the count of goroutines in the group by one
+
+<a name="Terminator.Go"></a>
+### func \(\*Terminator\) Go
+
+```go
+func (t *Terminator) Go(f func())
+```
+
+Go runs a function inside an Add\(1\) \-\-\- Done\(\) sequence
 
 <a name="Terminator.ShutDown"></a>
 ### func \(\*Terminator\) ShutDown

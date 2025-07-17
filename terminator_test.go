@@ -81,6 +81,42 @@ func TestDone(t *testing.T) {
 	}
 }
 
+func TestGo(t *testing.T) {
+	tests := []struct {
+		name string
+		f    func()
+	}{
+		{
+			name: "simple function",
+			f:    func() {},
+		},
+		{
+			name: "function waits on channel",
+			f: func() {
+				ch := make(chan struct{})
+				go func() { ch <- struct{}{} }()
+				<-ch
+			},
+		},
+		{
+			name: "function sets a variable",
+			f: func() {
+				called := true
+				if !called {
+					t.Error("function was not called")
+				}
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			SetDefault(New())
+			Go(tt.f)
+			Wait()
+		})
+	}
+}
+
 func TestShutDown(t *testing.T) {
 	tests := []struct {
 		name string
@@ -251,6 +287,40 @@ func TestTerminator_Done(t *testing.T) {
 				}
 			}()
 			tm.Wait()
+		})
+	}
+}
+
+func TestTerminator_Go(t *testing.T) {
+	type args struct {
+		f func()
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{
+			name: "simple function",
+			args: args{
+				f: func() {},
+			},
+		},
+		{
+			name: "function waits on channel",
+			args: args{
+				f: func() {
+					ch := make(chan struct{})
+					go func() { ch <- struct{}{} }()
+					<-ch
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tr := New()
+			tr.Go(tt.args.f)
+			tr.Wait()
 		})
 	}
 }
