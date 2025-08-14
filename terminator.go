@@ -96,9 +96,19 @@ func Wait() {
 
 // New returns a Terminator
 func New() *Terminator {
-	return &Terminator{
+	t := &Terminator{
 		shutdown: make(chan struct{}, 1),
 	}
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	signal.Notify(c, syscall.SIGTERM)
+	go func() {
+		defer signal.Stop(c)
+		<-c
+		t.Stop()
+	}()
+
+	return t
 }
 
 // Add adds delta to the count of goroutines in the group
