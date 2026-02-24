@@ -56,11 +56,9 @@ func Default() *Terminator { return defaultTerminator.Load() }
 
 // Go runs a function inside an Add(1) --- Done() sequence
 func Go(f func()) {
-	Default().wg.Add(1)
-	go func() {
-		defer Default().wg.Done()
+	Default().wg.Go(func() {
 		f()
-	}()
+	})
 }
 
 // Done decrements the count of goroutines in the group by one
@@ -123,11 +121,9 @@ func (t *Terminator) Done() {
 
 // Go runs a function inside an Add(1) --- Done() sequence
 func (t *Terminator) Go(f func()) {
-	t.wg.Add(1)
-	go func() {
-		defer t.wg.Done()
+	t.wg.Go(func() {
 		f()
-	}()
+	})
 }
 
 // ShutDown allows code to wait for a shut down signal
