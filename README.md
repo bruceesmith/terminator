@@ -21,6 +21,10 @@ Package terminator permits orderly stopping / shutdown of a group of goroutines 
 - [func ShuttingDown\(\) bool](<#ShuttingDown>)
 - [func Stop\(\)](<#Stop>)
 - [func Wait\(\)](<#Wait>)
+- [type ShutdownManager](<#ShutdownManager>)
+  - [func NewShutdownManager\(total time.Duration\) \*ShutdownManager](<#NewShutdownManager>)
+  - [func \(s \*ShutdownManager\) Register\(name string, timeout time.Duration, fn func\(ctx context.Context\) error\)](<#ShutdownManager.Register>)
+  - [func \(s \*ShutdownManager\) Shutdown\(\) error](<#ShutdownManager.Shutdown>)
 - [type Terminator](<#Terminator>)
   - [func Default\(\) \*Terminator](<#Default>)
   - [func New\(\) \*Terminator](<#New>)
@@ -78,6 +82,90 @@ func ShutDown() <-chan struct{}
 
 ShutDown allows code to wait for a shut down signal
 
+<details><summary>Example (Background_worker)</summary>
+<p>
+
+
+
+```go
+// --- Job processor ---
+process := func(job string) {
+	fmt.Println(job)
+}
+// --- Background Worker ---
+queue := make(chan string, 10)
+worker := func(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			fmt.Println("worker stopped")
+			return
+		case job := <-queue:
+			process(job)
+		}
+	}
+}
+// --- Launch the background worker inside a context.WithCancel ---
+workerCtx, workerCancel := context.WithCancel(context.Background())
+workerDone := make(chan struct{})
+go func() {
+	defer close(workerDone)
+	worker(workerCtx)
+}()
+// --- Shutdown Manager ---
+sm := NewShutdownManager(5 * time.Second)
+// --- Register a drain function for the background worker
+sm.Register(
+	"worker-drain",
+	20*time.Second,
+	func(ctx context.Context) error {
+		fmt.Println("draining worker")
+		workerCancel() // signal the worker to stop
+		select {
+		case <-workerDone:
+			return nil
+		case <-ctx.Done():
+			return fmt.Errorf("worker did not drain in time: %w", ctx.Err())
+		}
+	})
+// Submit jobs to the worker queue
+for i := range 5 {
+	queue <- fmt.Sprintf("%s %d", "job", i+1)
+}
+fmt.Println("jobs sent")
+// Give jobs a chance then quit gracefully
+time.Sleep(1 * time.Second)
+if err := sm.Shutdown(); err != nil {
+	fmt.Println("shutdown completed with errors", "error", err)
+}
+
+// Output:
+// jobs sent
+// job 1
+// job 2
+// job 3
+// job 4
+// job 5
+// draining worker
+// worker stopped
+```
+
+#### Output
+
+```
+jobs sent
+job 1
+job 2
+job 3
+job 4
+job 5
+draining worker
+worker stopped
+```
+
+</p>
+</details>
+
 <a name="ShuttingDown"></a>
 ## func ShuttingDown
 
@@ -104,6 +192,44 @@ func Wait()
 ```
 
 Wait blocks until every goroutines in the group has called Done\(\)
+
+<a name="ShutdownManager"></a>
+## type ShutdownManager
+
+ShutdownManager orchestrates ordered, phased shutdown.
+
+```go
+type ShutdownManager struct {
+    // contains filtered or unexported fields
+}
+```
+
+<a name="NewShutdownManager"></a>
+### func NewShutdownManager
+
+```go
+func NewShutdownManager(total time.Duration) *ShutdownManager
+```
+
+
+
+<a name="ShutdownManager.Register"></a>
+### func \(\*ShutdownManager\) Register
+
+```go
+func (s *ShutdownManager) Register(name string, timeout time.Duration, fn func(ctx context.Context) error)
+```
+
+Register adds a shutdown function to a named phase. Phases execute in registration order.
+
+<a name="ShutdownManager.Shutdown"></a>
+### func \(\*ShutdownManager\) Shutdown
+
+```go
+func (s *ShutdownManager) Shutdown() error
+```
+
+Shutdown runs all phases sequentially with independent timeouts.
 
 <a name="Terminator"></a>
 ## type Terminator
